@@ -1,0 +1,5 @@
+# 请求数据
+int32 requestCmd
+---
+# 响应数据
+string json_str
