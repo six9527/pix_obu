@@ -13,7 +13,7 @@ class RegistrationInformationReport:
         self.server = rospy.Service("/obu/chassis/RegistratIonInformationReport",OBUinterflowVehicle, self.callback_doReq)
         self.msgMap={
             # "vin_IN":"车辆标识,车架号, 字符类型",
-            "vin":"3LN6L5SU9KR601288",
+            "vin":"P-CQZW4110072A0N08001",
 
             # "plateNumber_IN":"车牌号, 字符类型。如:粤A0V08",
             "plateNumber":None,

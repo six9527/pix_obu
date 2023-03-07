@@ -2,9 +2,9 @@
 # -*- coding:utf-8 -*- 
 
 # 服务器配置信息
-# server_ip="124.70.1.208"
+server_ip="124.70.1.208"
 # server_port=1111
-server_ip="127.0.0.1"
+# server_ip="127.0.0.1"
 server_port=1111
 
 """

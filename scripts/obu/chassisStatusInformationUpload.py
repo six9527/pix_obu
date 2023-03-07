@@ -54,6 +54,7 @@ class StatusInformationUpload:
         
     def bms_report_callback(self,msg):
         self.msgMap["batteryQuantity"] = msg.Battery_Soc
+        self.msgMap["restdistance"] = msg.Battery_Soc*50
         self.msgMap["time"] = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime())
         self.msgMap["UTC"] = str(time.time())
         self.msgMap["markNum"] = 0

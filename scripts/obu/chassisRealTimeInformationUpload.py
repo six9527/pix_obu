@@ -9,7 +9,6 @@ from pix_driver_msgs.msg import steering_report_502
 from pix_driver_msgs.msg import vcu_report_505
 from pix_driver_msgs.msg import park_report_504
 from pix_driver_msgs.msg import throttle_report_500
-
 from sensor_msgs.msg import NavSatFix, Imu
 from tf import transformations
 
@@ -46,9 +45,9 @@ class RealTimeInformationUpload:
         # self.sub_throttle_report = rospy.Subscriber("/pix/throttle_report",ThrottleReport,self.throttle_report_callback)
         # ？？？？
         # 经纬度，海拔，车身姿态，定位状态，从车速度和距离，电机功率转速，横向纵向加速度，住车灯，刹车灯，倒车灯？？
-        self.sub_lon_lat = rospy.Subscriber("/gps/fix", NavSatFix, self.lon_lat_callback)#经纬度
+        self.sub_lon_lat = rospy.Subscriber("/fixposition/navsatfix", NavSatFix, self.lon_lat_callback)#经纬度
         # /sensing/imu/imu_data
-        self.sub_imu= rospy.Subscriber("/sensing/imu/imu_data", Imu, self.Imu_callback)#imu数据
+        self.sub_imu= rospy.Subscriber("/fixposition/poiimu", Imu, self.Imu_callback)#imu数据
 
         self.msgMap={
             "LocationType":31,
@@ -163,39 +162,38 @@ class RealTimeInformationUpload:
         # （2）或驾驶中(3)四种，数
         # 值类型如：1，未知为 255
 
-        # if (msg.CarWork_State,16 == 4):#
-        #     self.msgMap["carStatus"] = 3
+        if (msg.CarWork_State,16 == 4):#
+            self.msgMap["carStatus"] = 3
         
-        # elif (msg.CarWork_State,16== 5):#
-        #     self.msgMap["carStatus"] = 2
-        # else:
-        #     self.msgMap["carStatus"] = 255
+        elif (msg.CarWork_State,16== 5):#
+            self.msgMap["carStatus"] = 2
+        else:
+            self.msgMap["carStatus"] = 255
         
         # 车辆纵向，横向加速度
-        # self.msgMap["VehLongAccell"] = msg.Vehicle_Acc#车辆加速度
+        self.msgMap["VehLongAccell"] = msg.Vehicle_Acc#车辆加速度
         # self.msgMap["VehLongAccell"] = -999
-        # self.msgMap["VehLatrlAccel"] = -999
+        self.msgMap["VehLatrlAccel"] = -999
         #刹车灯
         self.msgMap["BrakeLightSwitchSt"] = msg.Brake_LightActual
 
     def brake_report_callback(self,msg):
-        # self.msgMap["braking"] = msg.Brake_PedalActual
         self.msgMap["braking"] = msg.Brake_PedalActual
 
     def gear_report_callback(self,msg):
-        if (msg.gear_actual == 1):
+        if (msg.Gear_Actual == 1):
             self.msgMap["gear"] = "P"
         
-        elif (msg.gear_actual == 2):
+        elif (msg.Gear_Actual == 2):
             self.msgMap["gear"] = "R"
         
-        elif (msg.gear_actual == 3):
+        elif (msg.Gear_Actual == 3):
             self.msgMap["gear"] = "N"
 
-        elif (msg.gear_actual == 4):
+        elif (msg.Gear_Actual == 4):
             self.msgMap["gear"] = "D"
         else:
-            self.msgMap["gear"] =  0xff
+            self.msgMap["gear"] = 0xff
 
     def steering_report_callback(self,msg):
         if(msg != None):
