@@ -3,9 +3,6 @@
 import rospy 
 import json
 from obu.srv import *
-from scipy.spatial.transform import Rotation as R
-# from pix_driver_msgs.msg import *
-
 from pix_driver_msgs.msg import brake_report_501
 from pix_driver_msgs.msg import gear_report_503
 from pix_driver_msgs.msg import steering_report_502
