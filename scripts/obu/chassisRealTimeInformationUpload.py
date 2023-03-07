@@ -3,6 +3,7 @@
 import rospy 
 import json
 from obu.srv import *
+from scipy.spatial.transform import Rotation as R
 # from pix_driver_msgs.msg import *
 
 from pix_driver_msgs.msg import brake_report_501
@@ -13,6 +14,8 @@ from pix_driver_msgs.msg import park_report_504
 from pix_driver_msgs.msg import throttle_report_500
 
 from sensor_msgs.msg import NavSatFix, Imu
+from tf import transformations
+
 
 class RealTimeInformationUpload:
     def __init__(self):
@@ -107,7 +110,7 @@ class RealTimeInformationUpload:
 
     def park_report_callback(self,msg):
         # self.msgMap["ParkingLampSt"] = msg.Parking_Actual
-        self.msgMap["ParkingLampSt"] = msg.parking_actual
+        self.msgMap["ParkingLampSt"] = msg.Parking_Actual
 
 
     def callback_doReq(self, req):
@@ -117,15 +120,15 @@ class RealTimeInformationUpload:
 
     def vcu_report_callback(self,msg):
         # self.msgMap["speed"] = msg.Vehicle_Speed
-        self.msgMap["speed"] = msg.speed
-        self.msgMap["turnLight"] =msg.turn_light_actual
+        self.msgMap["speed"] = msg.Vehicle_Speed
+        self.msgMap["turnLight"] =msg.TurnLight_Actual
 
         #启动判断
-        # if ( msg.CarPower_State,16 < 2):
-        #     # 0不再线1在线
-        #     self.msgMap["ifCarOnline"] = msg.CarPower_State
-        # else:
-        #     self.msgMap["ifCarOnline"] = 0
+        if ( msg.CarPower_State,16 < 2):
+            # 0不再线1在线
+            self.msgMap["ifCarOnline"] = msg.CarPower_State
+        else:
+            self.msgMap["ifCarOnline"] = 0
 
         
         # 模式判断
@@ -135,16 +138,16 @@ class RealTimeInformationUpload:
         # 0x0: Manual Remote Mode
         # msg.Vehicle_ModeState 
         #msg.vehicle_mode_state
-        if (msg.vehicle_mode_state,16 == 0):#手动远程模式
+        if (msg.Vehicle_ModeState,16 == 0):#手动远程模式
             self.msgMap["carMode1"] = 3
 
-        elif(msg.vehicle_mode_state,16 == 1):#自动驾驶模式
+        elif(msg.Vehicle_ModeState,16 == 1):#自动驾驶模式
              self.msgMap["carMode1"] = 2
 
-        elif(msg.vehicle_mode_state,16 == 2):#紧急模式
+        elif(msg.Vehicle_ModeState,16 == 2):#紧急模式
             self.msgMap["carMode1"] = 255
 
-        elif(msg.vehicle_mode_state,16 == 3):#待机模式
+        elif(msg.Vehicle_ModeState,16 == 3):#待机模式
             self.msgMap["carMode1"] = 255
 
         # 车辆状态
@@ -176,11 +179,11 @@ class RealTimeInformationUpload:
         # self.msgMap["VehLongAccell"] = -999
         # self.msgMap["VehLatrlAccel"] = -999
         #刹车灯
-        self.msgMap["BrakeLightSwitchSt"] = msg.brake_light_actual
+        self.msgMap["BrakeLightSwitchSt"] = msg.Brake_LightActual
 
     def brake_report_callback(self,msg):
         # self.msgMap["braking"] = msg.Brake_PedalActual
-        self.msgMap["braking"] = msg.brake_pedal_actual
+        self.msgMap["braking"] = msg.Brake_PedalActual
 
     def gear_report_callback(self,msg):
         if (msg.gear_actual == 1):
@@ -199,8 +202,8 @@ class RealTimeInformationUpload:
 
     def steering_report_callback(self,msg):
         if(msg != None):
-            self.msgMap["SWA"] = msg.steer_angle_actual
-            self.msgMap["SterringAngleSpd"] = msg.steer_angle_actual
+            self.msgMap["SWA"] = msg.Steer_AngleActual
+            self.msgMap["SterringAngleSpd"] = msg.Steer_AngleActual
 
         else:
             self.msgMap["SWA"] = -999
@@ -209,7 +212,7 @@ class RealTimeInformationUpload:
         return 1
 
     def throttle_report_callback(self,msg):
-        self.msgMap["throttle"] = msg.throttle_pedal_actual
+        self.msgMap["throttle"] = msg.Dirve_ThrottlePedalActual
         return 1
 
     def lon_lat_callback(self, msg):
@@ -218,9 +221,10 @@ class RealTimeInformationUpload:
         self.msgMap["altitude"] = msg.altitude
 
     def Imu_callback(self,msg):
-        self.msgMap["vehiclePosture"]["postureX"]= msg.linear_acceleration.x
-        self.msgMap["vehiclePosture"]["postureY"]= msg.linear_acceleration.y
-        self.msgMap["vehiclePosture"]["postureZ"]= msg.linear_acceleration.z
+        (r, p, y) = transformations.euler_from_quaternion([msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w])
+        self.msgMap["vehiclePosture"]["postureX"]= p
+        self.msgMap["vehiclePosture"]["postureY"]= r
+        self.msgMap["vehiclePosture"]["postureZ"]= y
 
 if __name__ == "__main__":
     rospy.init_node("obu_chassis_RealTimeInformationUpload")

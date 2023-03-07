@@ -106,7 +106,7 @@ class TcpInterfaceNode:
         if self.json_diff(resp,self.Status_last_resp):
             self.Status_last_resp = resp
             # 3. 发送响应信息到服务器
-            self.udpSocket.single_send(self.StatusInformation_client_srv.requestCmd, json.dumps(resp, ensure_ascii=False).json_str)
+            self.udpSocket.single_send(self.StatusInformation_client_srv.requestCmd,resp.json_str)
     
     # 3.3.1.4 车载主机车辆异常信息  --  单向 触发           
     def chassis_Abnormal_information_upload(self):
