@@ -9,6 +9,7 @@ from pix_driver_msgs.msg import steering_report_502
 from pix_driver_msgs.msg import vcu_report_505
 from pix_driver_msgs.msg import park_report_504
 from pix_driver_msgs.msg import throttle_report_500
+import struct
 from sensor_msgs.msg import NavSatFix, Imu
 from tf import transformations
 
@@ -47,7 +48,9 @@ class RealTimeInformationUpload:
         # 经纬度，海拔，车身姿态，定位状态，从车速度和距离，电机功率转速，横向纵向加速度，住车灯，刹车灯，倒车灯？？
         self.sub_lon_lat = rospy.Subscriber("/fixposition/navsatfix", NavSatFix, self.lon_lat_callback)#经纬度
         # /sensing/imu/imu_data
-        self.sub_imu= rospy.Subscriber("/fixposition/poiimu", Imu, self.Imu_callback)#imu数据
+        self.sub_imu= rospy.Subscriber("/sensing/imu/imu_data", Imu, self.Imu_callback)#imu数据
+        self.gear = ["P","R","N","D"]
+
 
         self.msgMap={
             "LocationType":31,
@@ -59,49 +62,49 @@ class RealTimeInformationUpload:
             "accuracy":1.0,
 
             "braking":0,
-            "gear":"N",
+            "gear":78,
             "speed":0,
             "SWA":0,
             "turnLight":0,
             #车身位姿，imu数据deg
             "vehiclePosture":{
-                "postureX":255,
-                "postureY":255,
-                "postureZ":255},
+                "postureX":10,
+                "postureY":0,
+                "postureZ":0},
 
             #从车位置
             "relativePosition":{
-                "speed2":-999,
-                "distanceR0":-999,
-                "distanceRY":-999,
-                "distanceRX":-999,
-                "distance0":-999},
+                "speed2":45,
+                "distanceR0":1,
+                "distanceRY":3,
+                "distanceRX":3,
+                "distance0":3},
 
             "ifCarOnline":0,
             "throttle":0,
             #电机转速
-            "rotationRate":-999,
+            "rotationRate":50,
 
             #电机功率
-            " power":-999,
+            " power":100,
 
             "carMode1":2,
             "carStatus":3,
             "SterringAngleSpd":0,
 
             # 车辆纵向，横向加速度
-            "VehLatrlAccel":-999,
-            "VehLongAccell":-999,
+            "VehLatrlAccel":1,
+            "VehLongAccell":1,
 
             #驾驶位门锁
-            "DriverDoorLockSt":255,
+            "DriverDoorLockSt":1,
 
             
             "BrakeLightSwitchSt":0,
-            "ParkingLampSt":255,
+            "ParkingLampSt":1,
 
             #住车灯，倒车灯
-            "Reverse_light_status":255
+            "Reverse_light_status":0
         }
 
     def park_report_callback(self,msg):
@@ -110,8 +113,6 @@ class RealTimeInformationUpload:
 
 
     def callback_doReq(self, req):
-        # for line in self.msgMap:
-        #     msg = line.strip("\n")
         return json.dumps(self.msgMap,ensure_ascii=False)
 
     def vcu_report_callback(self,msg):
@@ -120,7 +121,7 @@ class RealTimeInformationUpload:
         self.msgMap["turnLight"] =msg.TurnLight_Actual
 
         #启动判断
-        if ( msg.CarPower_State,16 < 2):
+        if ( msg.CarPower_State < 2):
             # 0不再线1在线
             self.msgMap["ifCarOnline"] = msg.CarPower_State
         else:
@@ -134,16 +135,16 @@ class RealTimeInformationUpload:
         # 0x0: Manual Remote Mode
         # msg.Vehicle_ModeState 
         #msg.vehicle_mode_state
-        if (msg.Vehicle_ModeState,16 == 0):#手动远程模式
-            self.msgMap["carMode1"] = 3
+        if (msg.Vehicle_ModeState == 0):#手动远程模式
+            self.msgMap["carMode1"] = 1
 
-        elif(msg.Vehicle_ModeState,16 == 1):#自动驾驶模式
+        elif(msg.Vehicle_ModeState == 1):#自动驾驶模式
              self.msgMap["carMode1"] = 2
 
-        elif(msg.Vehicle_ModeState,16 == 2):#紧急模式
+        elif(msg.Vehicle_ModeState == 2):#紧急模式
             self.msgMap["carMode1"] = 255
 
-        elif(msg.Vehicle_ModeState,16 == 3):#待机模式
+        elif(msg.Vehicle_ModeState == 3):#待机模式
             self.msgMap["carMode1"] = 255
 
         # 车辆状态
@@ -162,10 +163,10 @@ class RealTimeInformationUpload:
         # （2）或驾驶中(3)四种，数
         # 值类型如：1，未知为 255
 
-        if (msg.CarWork_State,16 == 4):#
+        if (msg.CarWork_State == 4):#
             self.msgMap["carStatus"] = 3
         
-        elif (msg.CarWork_State,16== 5):#
+        elif (msg.CarWork_State == 5):#
             self.msgMap["carStatus"] = 2
         else:
             self.msgMap["carStatus"] = 255
@@ -173,7 +174,6 @@ class RealTimeInformationUpload:
         # 车辆纵向，横向加速度
         self.msgMap["VehLongAccell"] = msg.Vehicle_Acc#车辆加速度
         # self.msgMap["VehLongAccell"] = -999
-        self.msgMap["VehLatrlAccel"] = -999
         #刹车灯
         self.msgMap["BrakeLightSwitchSt"] = msg.Brake_LightActual
 
@@ -182,16 +182,16 @@ class RealTimeInformationUpload:
 
     def gear_report_callback(self,msg):
         if (msg.Gear_Actual == 1):
-            self.msgMap["gear"] = "P"
+            self.msgMap["gear"] = 80
         
         elif (msg.Gear_Actual == 2):
-            self.msgMap["gear"] = "R"
+            self.msgMap["gear"] = 82
         
         elif (msg.Gear_Actual == 3):
-            self.msgMap["gear"] = "N"
-
+            self.msgMap["gear"] = 78
+            
         elif (msg.Gear_Actual == 4):
-            self.msgMap["gear"] = "D"
+            self.msgMap["gear"] = 68
         else:
             self.msgMap["gear"] = 0xff
 
@@ -220,6 +220,7 @@ class RealTimeInformationUpload:
         self.msgMap["vehiclePosture"]["postureX"]= p
         self.msgMap["vehiclePosture"]["postureY"]= r
         self.msgMap["vehiclePosture"]["postureZ"]= y
+        self.msgMap["VehLatrlAccel"] = msg.linear_acceleration.y
 
 if __name__ == "__main__":
     rospy.init_node("obu_chassis_RealTimeInformationUpload")

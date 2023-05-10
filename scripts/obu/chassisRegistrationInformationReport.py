@@ -16,10 +16,10 @@ class RegistrationInformationReport:
             "vin":"P-CQZW4110072A0N08001",
 
             # "plateNumber_IN":"车牌号, 字符类型。如:粤A0V08",
-            "plateNumber":None,
+            "plateNumber":"粤A0V10",
 
             # "personInCharge_IN":"安全员名字",
-            "personInCharge":"happiness",
+            "personInCharge":"PIXMOVING",
 
             # "manufacturer_IN":"车辆厂商名字",
             "manufacturer":"PIXMOVING",

@@ -164,6 +164,24 @@ include_directories(
 ## Install ##
 #############
 
+catkin_install_python(PROGRAMS
+  scripts/obu/chassisAbnormalnformationUpload.py
+  scripts/obu/chassisRealTimeInformationUpload.py
+  scripts/obu/chassisRegistrationInformationReport.py
+  scripts/obu/chassisStatusInformationUpload.py
+  scripts/obu/config.py
+  scripts/obu/mySocket.py
+  scripts/obu/udp_interface_node.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+install(TARGETS
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+install(DIRECTORY
+  launch
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
+
 # all install targets should use catkin DESTINATION variables
 # See http://ros.org/doc/api/catkin/html/adv_user_guide/variables.html
 

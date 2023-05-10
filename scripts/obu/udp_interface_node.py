@@ -54,7 +54,7 @@ class TcpInterfaceNode:
         self.Heartbeat_client_srv = OBUinterflowVehicleRequest()
         self.Heartbeat_client_srv.requestCmd=0x64
 
-        self.TrafficLight_pub = rospy.Publisher("/perception/traffic_light_recognition/traffic_light_states",TrafficLightStateArray,queue_size=10,latch=True)
+        self.TrafficLight_pub = rospy.Publisher("/foa/traffic_light_recognition/traffic_light_states",TrafficLightStateArray,queue_size=10)
         self.TL_CountDown_pub= rospy.Publisher("/perception/traffic_light_recognition/traffic_light_count_down",Int16, queue_size=10)
 
         try:
@@ -86,6 +86,7 @@ class TcpInterfaceNode:
         # 4. 接受服务器信息
         recv_msg = self.udpSocket.single_recv()
         rospy.loginfo(".......OBU客户端注册成功........")
+        rospy.loginfo(".......OBU start successful........")
 
     # 3.3.1.2 车载主机车辆实时信息  --  单向 10hz          
     def chassis_Real_time_information_upload(self):
@@ -166,10 +167,8 @@ class TcpInterfaceNode:
 
             elif recv_msg[0]==0x64:
                 rospy.logwarn("收到服务器心跳%d", recv_msg[0])
-            
             else:
-                rospy.logwarn("接收到的任务码不存在%d", recv_msg[0])
-                rospy.logwarn( recv_msg)
+                pass
 
 #由于python2会将json传输的的数据解析为unicode，使用该函数将其转换为str
     def unicode_convert(self,input):
@@ -181,6 +180,7 @@ class TcpInterfaceNode:
             return input.encode('utf-8')
         else:
             return input
+   
 
     # 3.3.1.6 红绿灯区域控制推送   -- 单向 0.5s            
     def traffic_light_area_control_push(self, unicode_msg,count):
@@ -189,44 +189,59 @@ class TcpInterfaceNode:
         TrafficLight_msg_id = TrafficLightState()
         TrafficLight_msg_Lamp = LampState()
         TL_CountDown = Int16()
-
-        for i in range(len(dict_msg["lightDetails"])):
-            TrafficLight_msg.header.frame_id = "map"
+        if (len(dict_msg["id"])<=0):
+            pass
+        elif(dict_msg["id"] in config.traffic_light):
+            # TrafficLight_msg.header.frame_id = "map"
             TrafficLight_msg.header.stamp = rospy.Time.now()
             TrafficLight_msg.header.seq = count
-            TrafficLight_msg_id.id = 125
-            # TrafficLight_msg.states = TrafficLight_msg_id
-            
-            # TrafficLight_msg.states.lamp_states[i].confidence = dict_msg["lightDetails"][i]["timeLeft"]
-            if dict_msg["lightDetails"][i]["if_current_light"] == 1 and dict_msg["lightDetails"][i]["type"] == 2:
-                if dict_msg["lightDetails"][i]["state"] == 0:
-                    TrafficLight_msg_Lamp.type = TrafficLight_msg_Lamp.RED
-                    TrafficLight_msg_id.lamp_states.append(TrafficLight_msg_Lamp)
-            
-                elif dict_msg["lightDetails"][i]["state"] == 1:
-                    TrafficLight_msg_Lamp.type = TrafficLight_msg_Lamp.YELLOW
-                    TrafficLight_msg_id.lamp_states.append(TrafficLight_msg_Lamp)
-                
-                elif dict_msg["lightDetails"][i]["state"] == 2:
-                    TrafficLight_msg_Lamp.type = TrafficLight_msg_Lamp.GREEN
-                    TrafficLight_msg_id.lamp_states.append(TrafficLight_msg_Lamp)
-                else:
-                    TrafficLight_msg_Lamp.type = TrafficLight_msg_Lamp.UNKNOWN
-                    TrafficLight_msg_id.lamp_states.append(TrafficLight_msg_Lamp)
-                TL_CountDown.data = dict_msg["lightDetails"][i]["timeLeft"]
+            TrafficLight_msg_id.id = config.traffic_light[str(dict_msg["id"])]
+            print(dict_msg)
 
-        TrafficLight_msg.states.append( TrafficLight_msg_id)
-        self.TrafficLight_pub.publish(TrafficLight_msg)
-        self.TL_CountDown_pub.publish(TL_CountDown)
+            for i in range(len(dict_msg["lightDetails"])):
+                if dict_msg["lightDetails"][i]["type"] == 2 and dict_msg["lightDetails"][i]["state"] != 3:
+                    if dict_msg["lightDetails"][i]["state"] == 0:
+                        TrafficLight_msg_Lamp.type = TrafficLight_msg_Lamp.RED
                     
+                
+                    elif dict_msg["lightDetails"][i]["state"] == 1:
+                        TrafficLight_msg_Lamp.type = TrafficLight_msg_Lamp.YELLOW
+                        
+                    
+                    elif dict_msg["lightDetails"][i]["state"] == 2:
+                        TrafficLight_msg_Lamp.type = TrafficLight_msg_Lamp.GREEN
 
+                    else:
+                        TrafficLight_msg_Lamp.type = TrafficLight_msg_Lamp.UNKNOWN
+                        
+                    TrafficLight_msg_Lamp.confidence = 1
+                    TrafficLight_msg_id.lamp_states.append(TrafficLight_msg_Lamp)
+                    TL_CountDown.data = dict_msg["lightDetails"][i]["timeLeft"]
 
-            # if_current_light = dict_msg["lightDetails"][i]["if_current_light"]
-            # light_type = dict_msg["lightDetails"][i]["type"]
-            # light_state = dict_msg["lightDetails"][i]["state"]
-            # timeLeft = dict_msg["lightDetails"][i]["timeLeft"]
-            # print("if_current_light:",if_current_light,"light_type:",light_type,
-            # "light_state:",light_state,"timeLeft:",timeLeft)
+                    TrafficLight_msg.states.append(TrafficLight_msg_id)
+                    self.TrafficLight_pub.publish(TrafficLight_msg)
+                    self.TL_CountDown_pub.publish(TL_CountDown)
+                elif dict_msg["lightDetails"][i]["type"] == 1 and dict_msg["lightDetails"][i]["state"] != 3:
+                    if dict_msg["lightDetails"][i]["state"] == 0:
+                        TrafficLight_msg_Lamp.type = TrafficLight_msg_Lamp.RED
+                       
+                
+                    elif dict_msg["lightDetails"][i]["state"] == 1:
+                        TrafficLight_msg_Lamp.type = TrafficLight_msg_Lamp.YELLOW
+                        
+                    
+                    elif dict_msg["lightDetails"][i]["state"] == 2:
+                        TrafficLight_msg_Lamp.type = TrafficLight_msg_Lamp.GREEN
+                    
+                    else:
+                        TrafficLight_msg_Lamp.type = TrafficLight_msg_Lamp.UNKNOWN
+                    TrafficLight_msg_Lamp.confidence = 1
+                    TrafficLight_msg_id.lamp_states.append(TrafficLight_msg_Lamp)
+                    TL_CountDown.data = dict_msg["lightDetails"][i]["timeLeft"]
+
+                    TrafficLight_msg.states.append(TrafficLight_msg_id)
+                    self.TrafficLight_pub.publish(TrafficLight_msg)
+                    self.TL_CountDown_pub.publish(TL_CountDown)
 
     # 3.3.1.7 标牌区域域控制推送   -- 单向 3s              
     def label_area_control_push(self, unicode_msg):
