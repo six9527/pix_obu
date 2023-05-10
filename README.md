@@ -1,2 +1,2 @@
 # pix_obu
-robobus
+obu通信基于citybot_v2

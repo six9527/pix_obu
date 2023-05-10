@@ -1,0 +1,10 @@
+<launch>
+<!-- 启动ros 服务器 -->
+    <node pkg="obu" type="chassisRealTimeInformationUpload.py" name="chassisRealTimeInformationUpload" output="screen"/> -->
+    <node pkg="obu" type="chassisAbnormalnformationUpload.py" name="chassisAbnormalnformationUpload" output="screen"/>
+    <node pkg="obu" type="chassisStatusInformationUpload.py" name="chassisStatusInformationUpload" output="screen"/>
+    <node pkg="obu" type="chassisRegistrationInformationReport.py" name="chassisRegistrationInformationReport" output="screen"/>
+<!-- 启动udp节点 -->
+    <node pkg="obu" type="udp_interface_node.py" name="udp_interface_node" output="screen"/>
+
+</launch>
