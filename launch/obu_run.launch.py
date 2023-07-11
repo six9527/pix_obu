@@ -21,6 +21,6 @@ def generate_launch_description():             # 自动生成launch文件的函�
         ),
         Node(                                  # 配置一个节点的启动
             package='obu',          # 节点所在的功能包
-            executable='tcp_socket_node', # 节点的可执行文件
+            executable='SocketNode', # 节点的可执行文件
         ),
     ])
