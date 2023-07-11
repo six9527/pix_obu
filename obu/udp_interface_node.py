@@ -1,72 +1,67 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding:utf-8 -*- 
-"""
-获取底盘map数据, 序列化, 上传给服务器
-获取服务器json数据,反序列化, 下发给底盘
-"""
-import unicodedata
-import rospy
-import json
-import threading
+import rclpy
 import time
-from obu.srv import OBUinterflowVehicle,OBUinterflowVehicleRequest,OBUinterflowVehicleResponse
-
-import mySocket
+import json
+from rclpy.node import Node                    # ROS2 节点类
+import threading
+from std_srvs.srv import Trigger
 from socket import MSG_DONTWAIT
-from autoware_perception_msgs.msg import LampState,TrafficLightState,TrafficLightStateArray,TrafficLight
+# from autoware_perception_msgs.msg import LampState,TrafficLightState,TrafficLightStateArray
 from std_msgs.msg import Int16
-
-import os,sys
-# 导入上一级文件夹里的自定义模块
-# sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+import os
+current_file_path = os.path.abspath(__file__)
+current_directory_path = os.path.dirname(current_file_path)
+import sys
+sys.path.append(current_directory_path)
+import mySocket
 import config
-import operator
-
-class TcpInterfaceNode:
-    def __init__(self):
+class TcpInterfaceNode(Node):
+    def __init__(self, name):
+        print(name)
+        super().__init__(name) 
         # 获取服务器和服务器端口
         self.addr=(config.server_ip, config.server_port)
         # 创建udp套接字
         self.udp_socket=mySocket.socket.socket(mySocket.socket.AF_INET,mySocket.socket.SOCK_DGRAM)
         self.udpSocket = mySocket.UdpSocket(self.addr, self.udp_socket) 
+        self.timer = self.create_timer(1, self.callback_timer)
 
-        rospy.Timer(rospy.Duration(1),self.callback_timer)
+        # ROS 2 客户端
+        self.Registration_client = self.create_client(Trigger, '/RegistratIonInformationReport')
+        self.RealTimeInformation_client = self.create_client(Trigger, '/RealTimeInformationUpload')
+        self.StatusInformation_client = self.create_client(Trigger, '/StatusInformationUpload')
+        self.AbnormalInformation_client = self.create_client(Trigger, '/AbnormalInformationUpload')
+        self.Heartbeat_client = self.create_client(Trigger, '/HeartbeatReport')
 
-        # ros 客户端
-        self.Registration_client = rospy.ServiceProxy("/obu/chassis/RegistratIonInformationReport",OBUinterflowVehicle)
-        self.RealTimeInformation_client = rospy.ServiceProxy("/obu/chassis/RealTimeInformationUpload",OBUinterflowVehicle)
-        self.StatusInformation_client = rospy.ServiceProxy("/obu/chassis/StatusInformationUpload",OBUinterflowVehicle)
-        self.AbnormalInformation_client = rospy.ServiceProxy("/obu/chassis/AbnormalInformationUpload",OBUinterflowVehicle)
-        self.Heartbeat_client = rospy.ServiceProxy("/obu/chassis/HeartbeatReport",OBUinterflowVehicle)
+        self.Registration_client_srv = Trigger.Request()
+        self.Registration_requestCmd = 0x60
 
-        self.Registration_client_srv = OBUinterflowVehicleRequest() 
-        self.Registration_client_srv.requestCmd=0x60
+        self.RealTimeInformation_client_srv = Trigger.Request()
+        self.RealTimeInformation_requestCmd = 0x61
 
-        self.RealTimeInformation_client_srv = OBUinterflowVehicleRequest()
-        self.RealTimeInformation_client_srv.requestCmd=0x61
+        self.StatusInformation_client_srv = Trigger.Request()
+        self.StatusInformation_requestCmd = 0x62
 
-        self.StatusInformation_client_srv = OBUinterflowVehicleRequest()
-        self.StatusInformation_client_srv.requestCmd=0x62
+        self.AbnormalInformation_client_srv = Trigger.Request()
+        self.AbnormalInformation_requestCmd = 0x63
 
-        self.AbnormalInformation_client_srv  = OBUinterflowVehicleRequest()
-        self.AbnormalInformation_client_srv.requestCmd=0x63
+        self.Heartbeat_client_srv = Trigger.Request()
+        self.Heartbeat_requestCmd = 0x64
 
-        self.Heartbeat_client_srv = OBUinterflowVehicleRequest()
-        self.Heartbeat_client_srv.requestCmd=0x64
-
-        self.TrafficLight_pub = rospy.Publisher("/light_color",TrafficLight,queue_size=10)
-        self.TL_CountDown_pub= rospy.Publisher("/perception/traffic_light_recognition/traffic_light_count_down",Int16, queue_size=10)
-        self.warningType_pub= rospy.Publisher("/warning_type",Int16, queue_size=10)
+        # self.TrafficLight_pub = self.create_publisher(TrafficLightStateArray, '/perception/traffic_light_recognition/traffic_light_states', 10)
+        # self.TL_CountDown_pub = self.create_publisher(Int16, '/perception/traffic_light_recognition/traffic_light_count_down', 10)
 
         try:
             self.loop_recv_Thread = threading.Thread(target=self.loop_recv,args=())
-        except:
-            rospy.logerr ("Error: 创建线程失败！！！")
+        except Exception as e:
+            self.get_logger().info("Error: 创建线程失败！！！")
 
         # 循环接受服务器内容
         self.Status_last_resp = None
         self.Abnormal_last_resp = None
-        rospy.loginfo(".......udp构造函数已完毕........")
+        self.get_logger().info(".......udp构造函数已完毕........")
+
 
     # --------------------------------------------------------------------------------------
     # 车载主机信息上行3.3.1.1-3.3.1.5
@@ -77,16 +72,16 @@ class TcpInterfaceNode:
     # 3.3.1.1 车载消息注册
     def chassis_Registration_Information_report(self):
         # 1. 等到服务就绪
-        self.Registration_client.wait_for_service()
-        # 2. 请求信息获取响应信息
-        time.sleep(1)
-        resp = self.Registration_client.call(self.Registration_client_srv)
+        while not self.Registration_client.wait_for_service(timeout_sec=10.0):
+            # 2. 请求信息获取响应信息
+            resp = self.Registration_client.call(self.Registration_client_srv)
         # 3. 发送响应信息到服务器
-        rospy.loginfo(".......发送OBU客户端注册........")
-        self.udpSocket.single_send(self.Registration_client_srv.requestCmd, resp.json_str)
+        self.get_logger().info(".......发送OBU客户端注册........") 
+        self.udpSocket.single_send(self.Registration_requestCmd, resp.json_str)
         # 4. 接受服务器信息
         recv_msg = self.udpSocket.single_recv()
-        rospy.loginfo(".......OBU客户端注册成功........")
+        self.get_logger().info(".......OBU客户端注册成功........")
+        self.get_logger().info(".......OBU start successful........")
 
     # 3.3.1.2 车载主机车辆实时信息  --  单向 10hz          
     def chassis_Real_time_information_upload(self):
@@ -95,7 +90,7 @@ class TcpInterfaceNode:
         # 2. 请求信息 获取响应信息
         resp = self.RealTimeInformation_client.call(self.RealTimeInformation_client_srv)
         # 3. 发送响应信息到服务器
-        self.udpSocket.single_send(self.RealTimeInformation_client_srv.requestCmd, resp.json_str)
+        self.udpSocket.single_send(self.RealTimeInformation_requestCmd, resp.json_str)
 
     # 3.3.1.3 车载主机车辆状态信息  --  单向 触发           
     def chassis_Status_information_upload(self):
@@ -107,7 +102,7 @@ class TcpInterfaceNode:
         if self.json_diff(resp,self.Status_last_resp):
             self.Status_last_resp = resp
             # 3. 发送响应信息到服务器
-            self.udpSocket.single_send(self.StatusInformation_client_srv.requestCmd,resp.json_str)
+            self.udpSocket.single_send(self.StatusInformation_requestCmd,resp.json_str)
     
     # 3.3.1.4 车载主机车辆异常信息  --  单向 触发           
     def chassis_Abnormal_information_upload(self):
@@ -115,11 +110,11 @@ class TcpInterfaceNode:
         self.AbnormalInformation_client.wait_for_service()
             # 2. 请求信息 获取响应信息
         resp = self.AbnormalInformation_client.call(self.AbnormalInformation_client_srv)
-        # if self.json_diff(resp,self.Abnormal_last_resp):
-        #         self.Abnormal_last_resp = resp
-        #         # 3. 发送响应信息到服务器
-        #         self.udpSocket.single_send(self.AbnormalInformation_client_srv.requestCmd, resp.json_str)
-        self.udpSocket.single_send(self.AbnormalInformation_client_srv.requestCmd, resp.json_str)   #test
+        if self.json_diff(resp,self.Abnormal_last_resp):
+                self.Abnormal_last_resp = resp
+                # 3. 发送响应信息到服务器
+                self.udpSocket.single_send(self.AbnormalInformation_requestCmd, resp.json_str)
+        self.udpSocket.single_send(self.AbnormalInformation_requestCmd, resp.json_str)   #test
 
     # 3.3.1.5 车载主机心跳上报     --  双向  1min          
     def chassis_heartbeat_report(self):
@@ -150,7 +145,7 @@ class TcpInterfaceNode:
 
     def loop_recv(self):
         TrafficLight_count = 0
-        while not rospy.is_shutdown():
+        while not rclpy.shutdown():
             recv_msg = self.udpSocket.single_recv()
             if recv_msg[0]==0x70:
                 TrafficLight_count += 1
@@ -166,11 +161,9 @@ class TcpInterfaceNode:
                 self.speed_limit_and_green_wave_traffic_push(json.loads(recv_msg[2]))
 
             elif recv_msg[0]==0x64:
-                rospy.logwarn("收到服务器心跳%d", recv_msg[0])
-            
+                self.get_logger().info("收到服务器心跳%d", recv_msg[0]) 
             else:
-                # rospy.logwarn("接收到的任务码不存在%d", recv_msg[0])
-                rospy.logwarn( recv_msg)
+                pass
 
 #由于python2会将json传输的的数据解析为unicode，使用该函数将其转换为str
     def unicode_convert(self,input):
@@ -182,46 +175,39 @@ class TcpInterfaceNode:
             return input.encode('utf-8')
         else:
             return input
+   
 
     # 3.3.1.6 红绿灯区域控制推送   -- 单向 0.5s            
-    def traffic_light_area_control_push(self, unicode_msg,count):
+    # def traffic_light_area_control_push(self, unicode_msg,count):
         dict_msg = self.unicode_convert(unicode_msg)#转换为str
         TrafficLight_msg = TrafficLightStateArray()
         TrafficLight_msg_id = TrafficLightState()
         TrafficLight_msg_Lamp = LampState()
-        TrafficLight_bus_msg = TrafficLight()
         TL_CountDown = Int16()
         if (len(dict_msg["id"])<=0):
             pass
         elif(dict_msg["id"] in config.traffic_light):
-            TrafficLight_msg.header.frame_id = "map"
-            TrafficLight_msg.header.stamp = rospy.Time.now()
+            # TrafficLight_msg.header.frame_id = "map"
+            TrafficLight_msg.header.stamp = self.get_clock().now().to_msg()
             TrafficLight_msg.header.seq = count
             TrafficLight_msg_id.id = config.traffic_light[str(dict_msg["id"])]
-
-            TrafficLight_bus_msg.header.frame_id = "map"
-            TrafficLight_bus_msg.header.stamp = rospy.Time.now()
-            TrafficLight_bus_msg.header.seq = count
             print(dict_msg)
 
-            # 1代笔绿色，0代表红色，2代表黄色
             for i in range(len(dict_msg["lightDetails"])):
                 if dict_msg["lightDetails"][i]["type"] == 2 and dict_msg["lightDetails"][i]["state"] != 3:
                     if dict_msg["lightDetails"][i]["state"] == 0:
                         TrafficLight_msg_Lamp.type = TrafficLight_msg_Lamp.RED
-                        TrafficLight_bus_msg.traffic_light = 0
+                    
                 
                     elif dict_msg["lightDetails"][i]["state"] == 1:
                         TrafficLight_msg_Lamp.type = TrafficLight_msg_Lamp.YELLOW
-                        TrafficLight_bus_msg.traffic_light = 2
+                        
                     
                     elif dict_msg["lightDetails"][i]["state"] == 2:
                         TrafficLight_msg_Lamp.type = TrafficLight_msg_Lamp.GREEN
-                        TrafficLight_bus_msg.traffic_light = 1
 
                     else:
                         TrafficLight_msg_Lamp.type = TrafficLight_msg_Lamp.UNKNOWN
-                        TrafficLight_bus_msg.traffic_light = 1
                         
                     TrafficLight_msg_Lamp.confidence = 1
                     TrafficLight_msg_id.lamp_states.append(TrafficLight_msg_Lamp)
@@ -230,25 +216,20 @@ class TcpInterfaceNode:
                     TrafficLight_msg.states.append(TrafficLight_msg_id)
                     self.TrafficLight_pub.publish(TrafficLight_msg)
                     self.TL_CountDown_pub.publish(TL_CountDown)
-
-                    self.TrafficLight_pub.publish(TrafficLight_bus_msg)
-
                 elif dict_msg["lightDetails"][i]["type"] == 1 and dict_msg["lightDetails"][i]["state"] != 3:
                     if dict_msg["lightDetails"][i]["state"] == 0:
                         TrafficLight_msg_Lamp.type = TrafficLight_msg_Lamp.RED
-                        TrafficLight_bus_msg.traffic_light = 0
+                       
                 
                     elif dict_msg["lightDetails"][i]["state"] == 1:
                         TrafficLight_msg_Lamp.type = TrafficLight_msg_Lamp.YELLOW
-                        TrafficLight_bus_msg.traffic_light = 2
+                        
                     
                     elif dict_msg["lightDetails"][i]["state"] == 2:
                         TrafficLight_msg_Lamp.type = TrafficLight_msg_Lamp.GREEN
-                        TrafficLight_bus_msg.traffic_light = 1
+                    
                     else:
                         TrafficLight_msg_Lamp.type = TrafficLight_msg_Lamp.UNKNOWN
-                        TrafficLight_bus_msg.traffic_light = 1
-
                     TrafficLight_msg_Lamp.confidence = 1
                     TrafficLight_msg_id.lamp_states.append(TrafficLight_msg_Lamp)
                     TL_CountDown.data = dict_msg["lightDetails"][i]["timeLeft"]
@@ -256,9 +237,6 @@ class TcpInterfaceNode:
                     TrafficLight_msg.states.append(TrafficLight_msg_id)
                     self.TrafficLight_pub.publish(TrafficLight_msg)
                     self.TL_CountDown_pub.publish(TL_CountDown)
-
-                    self.TrafficLight_pub.publish(TrafficLight_bus_msg)
-                    
 
     # 3.3.1.7 标牌区域域控制推送   -- 单向 3s              
     def label_area_control_push(self, unicode_msg):
@@ -269,15 +247,12 @@ class TcpInterfaceNode:
 
     # 3.3.1.8 预警区域提醒推送     -- 单向 触发            
     def reminder_push_in_alert_area(self, unicode_msg):
-        warning_pub = Int16()
         dict_msg =  self.unicode_convert(unicode_msg)#转换为str
-        warningType = dict_msg["warningType"]
+        warningType = json.dumps(dict_msg["warningType"], ensure_ascii=False, encoding='utf-8')
         signType = dict_msg["signType"]
         evenType = dict_msg["evenType"]
         warningInfo = dict_msg["warningInfo"]
         warningSuggestion = dict_msg["warningSuggestion"]
-        warning_pub.data= signType
-        self.warningType_pub.publish(warning_pub)
         distant = dict_msg["distant"]
         print("warningType:",warningType,"signType:",signType,
         "evenType:",evenType,"warningInfo:",warningInfo,
@@ -294,38 +269,33 @@ class TcpInterfaceNode:
     # 定时器-1s
     def callback_timer(self,event):
         # 关闭套接字
-        if rospy.is_shutdown():
+        if rclpy.shutdown():
             self.udp_socket.close()
-            rospy.loginfo("套接字关闭成功")
+            self.get_logger().info("套接字关闭成功")
             
 
 
-
-if __name__=="__main__":
-    rospy.init_node("tcp_socket_node")
-    rate = rospy.Rate(10)
-    tcp_node = TcpInterfaceNode()
-    rate.sleep()#延时初始化
-    tcp_node.chassis_Registration_Information_report()
+def main(args=None):
+    rclpy.init(args=args)                            # ROS2 Python接口初始化
+    node = TcpInterfaceNode('SocketNode')
+    time.sleep(2)
+    node.chassis_Registration_Information_report()
     one_min = 0# 计数器用于一分钟倒计时
     try :
-        tcp_node.loop_recv_Thread.start()
+        node.loop_recv_Thread.start()
     except:
-        rospy.logerr ("Error: 启动线程失败！！！")
+        node.get_logger().error("Error: 启动线程失败！！！")
 
-    while not rospy.is_shutdown():
-        tcp_node.chassis_Real_time_information_upload()
-        tcp_node.chassis_Abnormal_information_upload()
-        tcp_node.chassis_Status_information_upload()
+    while not rclpy.shutdown():
+        node.chassis_Real_time_information_upload()
+        node.chassis_Abnormal_information_upload()
+        node.chassis_Status_information_upload()
         if one_min == 600:
-            tcp_node.chassis_heartbeat_report()
+            node.chassis_heartbeat_report()
             one_min = 0
-        rate.sleep()
         one_min += 1
 
-        
-    # 注册车辆信息
-    rospy.spin()
-    del tcp_node
-    sys.exit()
+    rclpy.spin(node)                                 # 循环等待ROS2退出
+    node.destroy_node()                              # 销毁节点对象
+    rclpy.shutdown()                                 # 关闭ROS2 Python接口 
     

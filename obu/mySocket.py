@@ -1,16 +1,18 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding:utf-8 -*- 
 import socket
 import struct
 import os
-import config as msgConfig
-import json
-import yaml
+current_file_path = os.path.abspath(__file__)
+current_directory_path = os.path.dirname(current_file_path)
+import sys
+sys.path.append(current_directory_path)
+import config
 
 
-import sys   #reload()之前必须要引入模块
-reload(sys)
-sys.setdefaultencoding('utf-8')
+# import sys   #reload()之前必须要引入模块
+# # reload(sys)
+# sys.setdefaultencoding('utf-8')
 
 class UdpSocket(object):
     """
@@ -22,20 +24,15 @@ class UdpSocket(object):
         # self.udp_socket.setblocking(False)
         # self.udp_socket.settimeout(0.0)
         # 加载日志模块
-        # logging.config.fileConfig(msgConfig.configFile_dir+"/socket.conf")
+        # logging.config.fileConfig(config.configFile_dir+"/socket.conf")
         # # self.root_logger = logging.getLogger()
         # self.send_app_logger = logging.getLogger('send_applog')
         # self.recv_app_logger = logging.getLogger('recv_applog')
         # self.error_app_logger = logging.getLogger('error_applog')
-
-
-
-
-
     @staticmethod
     def __data_fotmat(msg_body_len):
         #
-        format_touple = (msgConfig.msg_format_prefix, str(msg_body_len), "s", msgConfig.msg_format_suffix) 
+        format_touple = (config.msg_format_prefix, str(msg_body_len), "s", config.msg_format_suffix) 
         return "".join(format_touple)
 
     # 数据打包成大端字节流的网络数据。computer string data 计算机数据
@@ -47,7 +44,7 @@ class UdpSocket(object):
 
     # 网络数据解包成元组, Ndata-网络数据
     def deconstruct_message(self, Ndata):
-        communication_format = self.__data_fotmat(len(Ndata)-msgConfig.msg_prefix_suffix_len)
+        communication_format = self.__data_fotmat(len(Ndata)-config.msg_prefix_suffix_len)
         return struct.unpack(communication_format, Ndata)
 
     # 单次发生已经打包好的数据
@@ -72,7 +69,7 @@ class UdpSocket(object):
 def main():
     # rospy.init_node("tcp_socket_node")
     # 获取服务器和服务器端口
-    addr=(msgConfig.server_ip, msgConfig.server_port)
+    addr=(config.server_ip, config.server_port)
     # 创建udp套接字
     udp_socket=socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
     # udp_test = UdpSocket(addr, udp_socket)
