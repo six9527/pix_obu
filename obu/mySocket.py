@@ -2,6 +2,7 @@
 # -*- coding:utf-8 -*- 
 import socket
 import struct
+import json
 import os
 current_file_path = os.path.abspath(__file__)
 current_directory_path = os.path.dirname(current_file_path)
@@ -9,26 +10,13 @@ import sys
 sys.path.append(current_directory_path)
 import config
 
-
-# import sys   #reload()之前必须要引入模块
-# # reload(sys)
-# sys.setdefaultencoding('utf-8')
-
 class UdpSocket(object):
     """
     socket通讯, 上传信息和下载信息
     """
-    def __init__(self, addr, udp_socket_obj):
-        self.addr=addr
-        self.udp_socket=udp_socket_obj
-        # self.udp_socket.setblocking(False)
-        # self.udp_socket.settimeout(0.0)
-        # 加载日志模块
-        # logging.config.fileConfig(config.configFile_dir+"/socket.conf")
-        # # self.root_logger = logging.getLogger()
-        # self.send_app_logger = logging.getLogger('send_applog')
-        # self.recv_app_logger = logging.getLogger('recv_applog')
-        # self.error_app_logger = logging.getLogger('error_applog')
+    def __init__(self, server_address):
+        self.server_address = server_address
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     @staticmethod
     def __data_fotmat(msg_body_len):
         #
@@ -49,31 +37,14 @@ class UdpSocket(object):
 
     # 单次发生已经打包好的数据
     def single_send(self, cmd, send_str):
-        """
-            cmd 命令码--uint_8
-            send_str 发送的字符串
-        """
-        # send_str = json.dumps(msg)
+        # date = json.dumps(send_str)
         send_data = self.construct_byte(cmd, send_str)
-        self.udp_socket.sendto(send_data, self.addr)
+        self.sock.sendto(send_data, self.server_address)
 
     # 单次接受已经解包的数据
     def single_recv(self):
-        data, addr = self.udp_socket.recvfrom(4096)
-        recv_msg = self.deconstruct_message(data)
-        # msg_body = json.loads(recv_msg[2])
-        # print(msg_body["vin"])
+        receive_data, client = self.sock.recvfrom(4096)
+        recv_msg = self.deconstruct_message(receive_data)
         return recv_msg
-
-
-def main():
-    # rospy.init_node("tcp_socket_node")
-    # 获取服务器和服务器端口
-    addr=(config.server_ip, config.server_port)
-    # 创建udp套接字
-    udp_socket=socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-    # udp_test = UdpSocket(addr, udp_socket)
-    udp_socket.close()
-
-if __name__ == "__main__":
-    main()
+    def close(self):
+        self.sock.close()
