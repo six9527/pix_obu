@@ -26,6 +26,7 @@ setup(
          'RegistratIonInformationReport = obu.chassisRegistrationInformationReport:main',
          'StatusInformationUpload = obu.chassisStatusInformationUpload:main',
          'SocketNode = obu.udp_interface_node:main',
+         'service_client_node = obu.test:main'
         ],
     },
 )
