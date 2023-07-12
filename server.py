@@ -30,6 +30,7 @@ if __name__ == "__main__":
                         receive_data, client = server_socket.recvfrom(4096)
                         print(time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(now))) #以指定格式显示时间
                         print("来自客户端%s,发送的%s\n" % (client, receive_data))  #打印接收的内容
+                        
                         server_socket.sendto(receive_data,client)
                   except socket.timeout:  #如果10秒钟没有接收数据进行提示（打印 "time out"）
                         print("time out")
