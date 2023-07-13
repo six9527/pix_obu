@@ -5,7 +5,7 @@ import json
 from std_srvs.srv import Trigger
 from rclpy.node import Node                    # ROS2 节点类
 from sensor_msgs.msg import NavSatFix, Imu
-import tf2_geometry_msgs
+import tf_transformations
 import math
 import os
 current_file_path = os.path.abspath(__file__)
@@ -86,7 +86,8 @@ class RealTimeInformationUpload(Node):
 
     def park_report_callback(self,msg):
         # self.msgMap['ParkingLampSt'] = msg.Parking_Actual
-        self.msgMap['ParkingLampSt'] = msg.Parking_Actual
+        if msg.parking_actual>0:
+            self.msgMap['ParkingLampSt'] = 1
 
 
     def callback_doReq(self, request, response):
@@ -96,13 +97,13 @@ class RealTimeInformationUpload(Node):
 
     def vcu_report_callback(self,msg):
         # self.msgMap['speed'] = msg.Vehicle_Speed
-        self.msgMap['speed'] = msg.Vehicle_Speed
-        self.msgMap['turnLight'] =msg.TurnLight_Actual
+        self.msgMap['speed'] = msg.vehicle_speed
+        self.msgMap['turnLight'] =msg.turn_light_actual
 
         #启动判断
-        if ( msg.CarPower_State < 2):
+        if ( msg.car_power_state < 2):
             # 0不再线1在线
-            self.msgMap['ifCarOnline'] = msg.CarPower_State
+            self.msgMap['ifCarOnline'] = msg.car_power_state
         else:
             self.msgMap['ifCarOnline'] = 0
 
@@ -114,16 +115,16 @@ class RealTimeInformationUpload(Node):
         # 0x0: Manual Remote Mode
         # msg.Vehicle_ModeState 
         #msg.vehicle_mode_state
-        if (msg.Vehicle_ModeState == 0):#手动远程模式
+        if (msg.vehicle_mode_state == 0):#手动远程模式
             self.msgMap['carMode1'] = 1
 
-        elif(msg.Vehicle_ModeState == 1):#自动驾驶模式
+        elif(msg.vehicle_mode_state == 1):#自动驾驶模式
              self.msgMap['carMode1'] = 2
 
-        elif(msg.Vehicle_ModeState == 2):#紧急模式
+        elif(msg.vehicle_mode_state == 2):#紧急模式
             self.msgMap['carMode1'] = 255
 
-        elif(msg.Vehicle_ModeState == 3):#待机模式
+        elif(msg.vehicle_mode_state == 3):#待机模式
             self.msgMap['carMode1'] = 255
 
         # 车辆状态
@@ -142,44 +143,44 @@ class RealTimeInformationUpload(Node):
         # （2）或驾驶中(3)四种，数
         # 值类型如：1，未知为 255
 
-        if (msg.CarWork_State == 4):#
+        if (msg.car_work_state == 4):#
             self.msgMap['carStatus'] = 3
         
-        elif (msg.CarWork_State == 5):#
+        elif (msg.car_work_state == 5):#
             self.msgMap['carStatus'] = 2
         else:
             self.msgMap['carStatus'] = 255
         
         # 车辆纵向，横向加速度
-        self.msgMap['VehLongAccell'] = msg.Vehicle_Acc#车辆加速度
+        self.msgMap['VehLongAccell'] = msg.vehicle_acc#车辆加速度
         #刹车灯
-        self.msgMap['BrakeLightSwitchSt'] = msg.Brake_LightActual
+        self.msgMap['BrakeLightSwitchSt'] = msg.brake_light_actual
 
     def brake_report_callback(self,msg):
-        self.msgMap['braking'] = msg.Brake_PedalActual
+        self.msgMap['braking'] = msg.brake_pedal_actual
 
     def gear_report_callback(self,msg):
-        if (msg.Gear_Actual == 1):
+        if (msg.gear_actual == 1):
             self.msgMap['gear'] = 80
         
-        elif (msg.Gear_Actual == 2):
+        elif (msg.gear_actual == 2):
             self.msgMap['gear'] = 82
         
-        elif (msg.Gear_Actual == 3):
+        elif (msg.gear_actual == 3):
             self.msgMap['gear'] = 78
             
-        elif (msg.Gear_Actual == 4):
+        elif (msg.gear_actual == 4):
             self.msgMap['gear'] = 68
         else:
             self.msgMap['gear'] = 0xff
 
     def steering_report_callback(self,msg):
-        self.msgMap['SWA'] = msg.Steer_AngleActual
-        self.msgMap['SterringAngleSpd'] = msg.Steer_AngleActual 
+        self.msgMap['SWA'] = msg.steer_angle_actual
+        self.msgMap['SterringAngleSpd'] = msg.steer_angle_actual 
         return 1
 
     def throttle_report_callback(self,msg):
-        self.msgMap['throttle'] = msg.Dirve_ThrottlePedalActual
+        self.msgMap['throttle'] = msg.dirve_throttle_pedal_actual
         return 1
 
     def lon_lat_callback(self, msg):
@@ -188,7 +189,7 @@ class RealTimeInformationUpload(Node):
         self.msgMap['altitude'] = msg.altitude
 
     def Imu_callback(self,msg):
-        euler = tf2_geometry_msgs.transformations.euler_from_quaternion([msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w])
+        euler = tf_transformations.euler_from_quaternion([msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w])
         self.msgMap['vehiclePosture']['postureX']= math.degrees(euler[1])
         self.msgMap['vehiclePosture']['postureY']= math.degrees(euler[0])
         self.msgMap['vehiclePosture']['postureZ']= math.degrees(euler[2])

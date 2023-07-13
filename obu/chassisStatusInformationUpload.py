@@ -58,8 +58,8 @@ class StatusInformationUpload(Node):
         }
         
     def vcu_report_callback(self,msg):
-        self.msgMap["batteryQuantity"] = msg.Battery_Soc
-        self.msgMap["restdistance"] = msg.Battery_Soc*60/100
+        self.msgMap["batteryQuantity"] = msg.battery_soc
+        self.msgMap["restdistance"] = msg.battery_soc*60/100
         self.msgMap["time"] = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime())
         self.msgMap["UTC"] = str(time.time())
         self.msgMap["markNum"] = 0

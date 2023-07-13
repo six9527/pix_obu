@@ -21,7 +21,7 @@ msg_cmd_len = 1
 msg_Body_len = 4
 msg_prefix_suffix_len=5
 # 红绿灯对应表
-traffic_light={"light219218":4898,"light218217":4999,"light215124":4887,"light213214":4876}#4887
+traffic_light={"light219218":"4898","light218217":"4999","light215124":"4887","light213214":"4876"}#4887
 
 # -------------------------------------------------------------
 from pix_sweeping_driver_msgs.msg import BmsReport as BmsReport
