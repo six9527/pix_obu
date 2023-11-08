@@ -1,2 +1,2 @@
 # pix_obu
-obu通信基于citybot_v2
+obu通信基于robbus_ai 交职院
