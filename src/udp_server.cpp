@@ -47,6 +47,7 @@ std::vector<uint8_t> udp_server::receive_data(){
 }
 
 void udp_server::send_to_client(std::vector<uint8_t> message , size_t len_) {
+    std::cout<<"std::"<<message[1]<<std::endl;
     ssize_t bytes_sent = sendto(socket_fd_, message.data(),len_, 0,
                                (struct sockaddr*)&client_address, sizeof(client_address));
     if (bytes_sent == -1) {

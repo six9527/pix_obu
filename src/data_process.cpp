@@ -1,6 +1,10 @@
 #include "obu/data_process.hpp"
 data_process::data_process(rclcpp::Node::SharedPtr node){
     node_ = node;
+    traffic_signal_array_pub_ = node_->create_publisher<TrafficSignalArray>("/perception/traffic_light_recognition/traffic_signals", rclcpp::QoS(1));
+
+    heading_sub_ = node_->create_subscription<Float32>("/sensing/gnss/heading", 10,
+    std::bind(&data_process::callback_heading, this, std::placeholders::_1));
 };
 data_process:: ~data_process(){};
 std::string data_process::get_string(){
@@ -164,6 +168,21 @@ std::string data_process::get_string(){
     return jsonStr;
 }
 
+void data_process::callback_heading(const Float32::SharedPtr msg){
+    // Float32 heading_msg;
+    // heading_msg.data = msg;
+    if (msg->data < 180){
+        traffic_signal_msg_.map_primitive_id = 123456;
+        Lanlet_id = 0;
+        
+    }
+    else{
+        traffic_signal_msg_.map_primitive_id = 123457;
+        Lanlet_id = 1;
+    }
+    std::cout<<"test"<<std::endl;
+}
+
 std::vector<uint8_t> data_process::packed_data(){
     Message msg;
     time_t timep;
@@ -181,23 +200,30 @@ std::vector<uint8_t> data_process::packed_data(){
 }
 
 void data_process::parse_data(std::vector<uint8_t> received_data){
-    Message receive_message;
-    TrafficSignalArray traffic_signal_array_msg_;
-    TrafficSignal traffic_signal_msg_;
-    TrafficLight traffic_light_msg_;
-    traffic_signal_array_pub_ = node_->create_publisher<TrafficSignalArray>("/perception/traffic_light_recognition/traffic_signals", rclcpp::QoS(1));
-
     receive_message = received_data;
+    traffic_signal_msg_.lights.clear();
+    traffic_signal_array_msg_.signals.clear();
     json parsed_json = json::parse(receive_message.message_body);
-    std::cout<<"state_active:"<<parsed_json["scene"]["glosa"]["glosa_info"][0]["state_active"]<<std::endl;
-    if ((parsed_json["scene"]["glosa"]["glosa_info"][0]["state"]) == 3){
-        traffic_light_msg_.color = traffic_light_msg_.GREEN;
-        traffic_light_msg_.shape = traffic_light_msg_.LEFT_ARROW;
+    // 3：红，6：绿，7：黄
+    std::cout<<"state_active:"<<parsed_json["scene"]["glosa"]["glosa_info"][Lanlet_id]["state"]<<std::endl;
+    if ((parsed_json["scene"]["glosa"]["glosa_info"][Lanlet_id]["state"]) == 3){
+        traffic_light_msg_.color = traffic_light_msg_.RED;
+        traffic_light_msg_.shape = traffic_light_msg_.UP_ARROW;
         traffic_light_msg_.status = traffic_light_msg_.SOLID_ON;
     }
-    traffic_light_msg_.confidence = 1;
+    if ((parsed_json["scene"]["glosa"]["glosa_info"][Lanlet_id]["state"]) == 6){
+        traffic_light_msg_.color = traffic_light_msg_.GREEN;
+        traffic_light_msg_.shape = traffic_light_msg_.UP_ARROW;
+        traffic_light_msg_.status = traffic_light_msg_.SOLID_ON;
+    }
+    if ((parsed_json["scene"]["glosa"]["glosa_info"][Lanlet_id]["state"]) == 7){
+        traffic_light_msg_.color = traffic_light_msg_.GREEN;
+        traffic_light_msg_.shape = traffic_light_msg_.UP_ARROW;
+        traffic_light_msg_.status = traffic_light_msg_.SOLID_ON;
+    }
+    // std::cout<<"state_active:"<<std::endl;
 
-    traffic_signal_msg_.map_primitive_id = 123456;
+    traffic_light_msg_.confidence = 1;
     traffic_signal_msg_.lights.push_back(traffic_light_msg_);
 
     traffic_signal_array_msg_.header.stamp = node_->now();

@@ -15,11 +15,16 @@ int main(int argc, char** argv) {
     data_process data_process_(node);
 
     while(rclcpp::ok()){
+        
         udp_server.send_to_client(data_process_.packed_data(),29+data_process_.get_string().length());
+        std::cout<<"send over"<<std::endl;
         data_process_.parse_data(udp_server.receive_data());
+        std::cout<<"receive over"<<std::endl;
+        rclcpp::spin_some(node);
+        sleep(1);
     }
 
-    rclcpp::spin(node);
+    
     rclcpp::shutdown();
     return 0;
 

@@ -7,6 +7,7 @@
 #include <autoware_auto_perception_msgs/msg/traffic_signal_array.hpp>
 #include <autoware_auto_perception_msgs/msg/traffic_light.hpp>
 #include <autoware_auto_perception_msgs/msg/traffic_signal.hpp>
+#include <std_msgs/msg/float32.hpp>
 #include "rclcpp/rclcpp.hpp"
 
 using json = nlohmann::json;
@@ -39,11 +40,21 @@ public:
     // 将message打包为字节流
     std::vector<uint8_t> packed_data();
     void parse_data(std::vector<uint8_t> received_data);
+    
     using TrafficSignalArray = autoware_auto_perception_msgs::msg::TrafficSignalArray;
     using TrafficSignal = autoware_auto_perception_msgs::msg::TrafficSignal;
     using TrafficLight = autoware_auto_perception_msgs::msg::TrafficLight;
+    using Float32 = std_msgs::msg::Float32;
+    void callback_heading(const Float32::SharedPtr msg);
+    int Lanlet_id = 0;
 
     rclcpp::Publisher<TrafficSignalArray>::SharedPtr traffic_signal_array_pub_;
+    rclcpp::Subscription<Float32>::SharedPtr heading_sub_;
+
+    Message receive_message;
+    TrafficSignalArray traffic_signal_array_msg_;
+    TrafficSignal traffic_signal_msg_;
+    TrafficLight traffic_light_msg_;
     
 private:
     json message_json;
