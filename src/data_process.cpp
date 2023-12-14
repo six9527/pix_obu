@@ -169,15 +169,13 @@ std::string data_process::get_string(){
 }
 
 void data_process::callback_heading(const Float32::SharedPtr msg){
-    // Float32 heading_msg;
-    // heading_msg.data = msg;
     if (msg->data < 180){
-        traffic_signal_msg_.map_primitive_id = 123456;
+        traffic_signal_msg_.map_primitive_id = 11071;
+        //0 左转,1 直行,2 右转
         Lanlet_id = 0;
-        
     }
     else{
-        traffic_signal_msg_.map_primitive_id = 123457;
+        traffic_signal_msg_.map_primitive_id = 15666;
         Lanlet_id = 1;
     }
     std::cout<<"test"<<std::endl;
