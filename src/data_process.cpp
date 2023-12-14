@@ -173,6 +173,7 @@ void data_process::callback_heading(const Float32::SharedPtr msg){
         traffic_signal_msg_.map_primitive_id = 11071;
         //0 左转,1 直行,2 右转
         Lanlet_id = 0;
+        
     }
     else{
         traffic_signal_msg_.map_primitive_id = 15666;
